@@ -1,6 +1,10 @@
 pipeline {
 
     agent any
+    
+    triggers {
+    githubPush()
+}
 
     environment {
         IMAGE_NAME = "vaibhavsurase/devops-app"

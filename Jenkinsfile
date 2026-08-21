@@ -1,10 +1,14 @@
 pipeline {
 
     agent any
-    
+
     triggers {
-    githubPush()
-}
+        githubPush()
+    }
+
+    tools {
+        sonarQube 'SonarQubeScanner'
+    }
 
     environment {
         IMAGE_NAME = "vaibhavsurase/devops-app"
@@ -26,6 +30,19 @@ pipeline {
                     ./venv/bin/python -m py_compile app.py
                     ./venv/bin/python -m pytest
                 '''
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            steps {
+                withSonarQubeEnv('SonarQube') {
+                    sh '''
+                        sonar-scanner \
+                        -Dsonar.projectKey=Flask-Production-CI-CD \
+                        -Dsonar.projectName="Flask Production CI/CD" \
+                        -Dsonar.sources=.
+                    '''
+                }
             }
         }
 

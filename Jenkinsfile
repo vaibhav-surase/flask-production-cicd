@@ -6,10 +6,6 @@ pipeline {
         githubPush()
     }
 
-    tools {
-        sonarQube 'SonarQubeScanner'
-    }
-
     environment {
         IMAGE_NAME = "vaibhavsurase/devops-app"
     }

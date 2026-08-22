@@ -6,12 +6,9 @@ pipeline {
         githubPush()
     }
 
-    tools {
-        sonarRunner 'SonarQubeScanner'
-    }
-
     environment {
         IMAGE_NAME = "vaibhavsurase/devops-app"
+        SONAR_SCANNER_HOME = tool 'SonarQubeScanner'
     }
 
     stages {
@@ -37,6 +34,8 @@ pipeline {
             steps {
                 withSonarQubeEnv('SonarQube') {
                     sh '''
+                        export PATH="$SONAR_SCANNER_HOME/bin:$PATH"
+
                         sonar-scanner \
                         -Dsonar.projectKey=Flask-Production-CI-CD \
                         -Dsonar.projectName="Flask Production CI/CD" \

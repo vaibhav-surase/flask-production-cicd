@@ -7,7 +7,10 @@ pipeline {
     }
 
     environment {
-        IMAGE_NAME = "vaibhavsurase/devops-app"
+        AWS_REGION = "ap-south-1"
+        ECR_REGISTRY = "583749796090.dkr.ecr.ap-south-1.amazonaws.com"
+        ECR_REPOSITORY = "devops-app"
+        IMAGE_NAME = "${ECR_REGISTRY}/${ECR_REPOSITORY}"
         SONAR_SCANNER_HOME = tool 'SonarQubeScanner'
     }
 
@@ -45,38 +48,88 @@ pipeline {
             }
         }
 
-        stage('Build Docker Image') {
-            steps {
-                sh '''
-                    docker build -t ${IMAGE_NAME}:${BUILD_NUMBER} .
-                '''
-            }
-        }
-
-        stage('Push Docker Image') {
+        stage('Configure EKS') {
             steps {
                 withCredentials([
                     usernamePassword(
-                        credentialsId: 'dockerhub-credentials',
-                        usernameVariable: 'DOCKER_USER',
-                        passwordVariable: 'DOCKER_PASS'
+                        credentialsId: 'aws-credentials',
+                        usernameVariable: 'AWS_ACCESS_KEY_ID',
+                        passwordVariable: 'AWS_SECRET_ACCESS_KEY'
                     )
                 ]) {
                     sh '''
-                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-                        docker push ${IMAGE_NAME}:${BUILD_NUMBER}
+                        export AWS_DEFAULT_REGION=${AWS_REGION}
+
+                        mkdir -p $HOME/.kube
+
+                        aws eks update-kubeconfig \
+                          --region ${AWS_REGION} \
+                          --name devops-eks \
+                          --kubeconfig $HOME/.kube/config
+
+                        kubectl config current-context
+                        kubectl get nodes
                     '''
                 }
             }
         }
 
-        stage('Deploy') {
+        stage('Build Docker Image') {
+            steps {
+                sh '''
+                    docker build \
+                    -t ${IMAGE_NAME}:${BUILD_NUMBER} .
+                '''
+            }
+        }
+
+        stage('Login to ECR') {
+            steps {
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'aws-credentials',
+                        usernameVariable: 'AWS_ACCESS_KEY_ID',
+                        passwordVariable: 'AWS_SECRET_ACCESS_KEY'
+                    )
+                ]) {
+                    sh '''
+                        export AWS_DEFAULT_REGION=${AWS_REGION}
+
+                        aws ecr get-login-password \
+                        --region ${AWS_REGION} | \
+                        docker login \
+                        --username AWS \
+                        --password-stdin ${ECR_REGISTRY}
+                    '''
+                }
+            }
+        }
+
+        stage('Push Docker Image') {
+            steps {
+                sh '''
+                    docker push ${IMAGE_NAME}:${BUILD_NUMBER}
+                '''
+            }
+        }
+
+        stage('Deploy to EKS') {
             steps {
                 sh '''
                     kubectl set image deployment/devops-app \
                     devops-app=${IMAGE_NAME}:${BUILD_NUMBER}
 
                     kubectl rollout status deployment/devops-app
+                '''
+            }
+        }
+
+        stage('Verify Deployment') {
+            steps {
+                sh '''
+                    kubectl get pods -l app=devops-app
+                    kubectl get deployment devops-app
+                    kubectl get svc devops-app-service
                 '''
             }
         }

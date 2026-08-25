@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: devops-app
+
+spec:
+  replicas: 2
+
+  selector:
+    matchLabels:
+      app: devops-app
+
+  template:
+    metadata:
+      labels:
+        app: devops-app
+
+    spec:
+      serviceAccountName: devops-app
+
+      containers:
+        - name: devops-app
+          image: 583749796090.dkr.ecr.ap-south-1.amazonaws.com/devops-app:1.2
+
+          ports:
+            - containerPort: 5000
+
+          env:
+
+            - name: AWS_REGION
+              value: ap-south-1
+
+            - name: AWS_SECRET_NAME
+              value: devops/rds/postgres
+
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 10
+            periodSeconds: 20

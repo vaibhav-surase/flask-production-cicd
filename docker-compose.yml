@@ -1,0 +1,30 @@
+services:
+
+  postgres:
+    image: postgres:16
+    container_name: devops-postgres
+    environment:
+      POSTGRES_DB: devopsdb
+      POSTGRES_USER: devops
+      POSTGRES_PASSWORD: devops123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  app:
+    build: .
+    container_name: devops-app
+    environment:
+      DB_HOST: postgres
+      DB_NAME: devopsdb
+      DB_USER: devops
+      DB_PASSWORD: devops123
+      DB_PORT: 5432
+    ports:
+      - "5000:5000"
+    depends_on:
+      - postgres
+
+volumes:
+  postgres_data:
